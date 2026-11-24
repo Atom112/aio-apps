@@ -66,15 +66,18 @@ jobs:
           rm -f "$RUNNER_TEMP/publisher.key"
           node .aio-tools/apps-registry-tool.mjs verify --in registry.json --pubkey "$(cat publisher.pub)"
 
-      - name: Publish registry to main
+      # `main` is review-only (see README → Governance), so generated output lives on an
+      # unprotected `registry` branch. Clients read that branch (or an immutable tag).
+      - name: Publish registry branch
         run: |
           set -euo pipefail
           git config user.name 'aio-catalog-bot'
           git config user.email 'aio-catalog-bot@users.noreply.github.com'
+          git checkout -B registry
           git add registry.json artifacts
           if git diff --cached --quiet; then
             echo "registry unchanged"
             exit 0
           fi
           git commit -m 'chore(registry): rebuild [skip ci]'
-          git push
+          git push --force origin registry

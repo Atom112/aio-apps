@@ -7,18 +7,19 @@ a signed `registry.json` plus immutable `artifacts/*.zip`.
 
 AIO → **Store → Online catalog**:
 
-| Field                                 | Value                                                             |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| Registry URL                          | `https://cdn.jsdelivr.net/gh/Atom112/aio-apps@main/registry.json` |
-| Publisher public key (base64 ed25519) | `9u2f5E2YBdmETe2+GoutiQq9WkhgZcITAijhWpRhUfI=`                    |
+| Field                                 | Value                                                                 |
+| ------------------------------------- | --------------------------------------------------------------------- |
+| Registry URL                          | `https://cdn.jsdelivr.net/gh/Atom112/aio-apps@registry/registry.json` |
+| Publisher public key (base64 ed25519) | `9u2f5E2YBdmETe2+GoutiQq9WkhgZcITAijhWpRhUfI=`                        |
 
 The client verifies the ed25519 signature over the payload bytes, then sha256 of each
 artifact before extracting it. A tampered payload fails before anything is downloaded.
 
-`raw.githubusercontent.com` serves the same files and is the GitHub-native option, but some
-networks reset that host; jsDelivr is the default for that reason. For reproducible installs
-replace `@main` with a release tag (`@v1.2.3`): jsDelivr caches branch URLs for hours, while
-tag URLs are immutable.
+`main` holds reviewed sources only; CI publishes `registry.json` and `artifacts/` to the
+`registry` branch, so the reviewed branch never needs a machine commit. `raw.githubusercontent.com`
+serves the same files and is the GitHub-native option, but some networks reset that host;
+jsDelivr is the default for that reason. For reproducible installs replace `@registry` with a
+release tag (`@v1.2.3`): jsDelivr caches branch URLs for hours, while tag URLs are immutable.
 
 ## Layout
 
@@ -70,8 +71,9 @@ and show the reason; uninstall stays available.
 
 ## Governance
 
-- `main` is protected: no direct pushes, one approving review, and the `verify` check must pass
-  (the CI bot may push its own `[skip ci]` registry commit).
+- `main` is protected: no direct pushes, one approving review (CODEOWNERS), and the `verify`
+  check must pass. Generated output never lands on `main`; CI force-pushes it to the
+  unprotected `registry` branch.
 - Signing runs only in the `production` environment, which requires manual approval. The
   `PUBLISHER_KEY` secret exists **only** there; a normal PR run never sees it.
 - Reviews follow `REVIEW.md`; `CODEOWNERS` requests the owner on every submission.
