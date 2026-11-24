@@ -7,13 +7,18 @@ a signed `registry.json` plus immutable `artifacts/*.zip`.
 
 AIO → **Store → Online catalog**:
 
-| Field                                 | Value                                                                   |
-| ------------------------------------- | ----------------------------------------------------------------------- |
-| Registry URL                          | `https://raw.githubusercontent.com/Atom112/aio-apps/main/registry.json` |
-| Publisher public key (base64 ed25519) | `9u2f5E2YBdmETe2+GoutiQq9WkhgZcITAijhWpRhUfI=`                          |
+| Field                                 | Value                                                             |
+| ------------------------------------- | ----------------------------------------------------------------- |
+| Registry URL                          | `https://cdn.jsdelivr.net/gh/Atom112/aio-apps@main/registry.json` |
+| Publisher public key (base64 ed25519) | `9u2f5E2YBdmETe2+GoutiQq9WkhgZcITAijhWpRhUfI=`                    |
 
 The client verifies the ed25519 signature over the payload bytes, then sha256 of each
 artifact before extracting it. A tampered payload fails before anything is downloaded.
+
+`raw.githubusercontent.com` serves the same files and is the GitHub-native option, but some
+networks reset that host; jsDelivr is the default for that reason. For reproducible installs
+replace `@main` with a release tag (`@v1.2.3`): jsDelivr caches branch URLs for hours, while
+tag URLs are immutable.
 
 ## Layout
 
