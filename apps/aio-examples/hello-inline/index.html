@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inline Card</title>
+    <link rel="stylesheet" href="aio-app-ui.css" />
+    <style>
+      body {
+        padding: 12px;
+        height: 100vh;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .big {
+        font-size: 34px;
+        font-weight: 600;
+        text-align: center;
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="aio-row">
+      <span class="aio-title">内嵌卡片</span>
+      <span class="aio-muted" id="meta">握手中…</span>
+    </div>
+    <div class="aio-card aio-stack">
+      <div class="aio-muted">点击次数（保存在应用自己的数据库）</div>
+      <div class="big" id="count">0</div>
+      <button class="aio-btn" id="bump">点一下</button>
+    </div>
+    <div class="aio-muted" id="hint">
+      inline 模式只占一张卡片的位置：宿主提供外壳与主题，不会把整个工作区交给应用。
+    </div>
+    <script src="aio-app-sdk.js"></script>
+    <script>
+      (async function () {
+        'use strict';
+        var countEl = document.getElementById('count');
+        var metaEl = document.getElementById('meta');
+        var app;
+        try {
+          app = await AIO.connect();
+        } catch (error) {
+          metaEl.textContent = '连接宿主失败: ' + (error && error.code ? error.code : error);
+          return;
+        }
+
+        function renderMeta(theme) {
+          metaEl.textContent = app.appId + ' · ' + app.uiMode + ' · ' + (theme && theme.mode);
+        }
+        renderMeta(app.theme);
+        app.onTheme(renderMeta);
+        // An inline card can be opened long after the handshake; re-read the theme through
+        // the bridge so the card is never stale (also demonstrates `ui/theme`).
+        app.refreshTheme().catch(function () {
+          /* theme push covers the normal case */
+        });
+
+        app.kv.get('count').then(function (entry) {
+          countEl.textContent = entry ? entry.value : '0';
+        });
+
+        document.getElementById('bump').addEventListener('click', function () {
+          var next = String(Number(countEl.textContent || '0') + 1);
+          countEl.textContent = next;
+          app.kv.set('count', next).catch(function (error) {
+            metaEl.textContent = error.code || 'error';
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

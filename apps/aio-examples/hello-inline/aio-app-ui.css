@@ -1,0 +1,125 @@
+/*
+ * @aio/app-ui — reference stylesheet for micro-apps.
+ *
+ * Only tokens and neutral primitives: no colour literals, no font families. An app that links
+ * this file (`<link rel="stylesheet" href="aio-app-ui.css">`) gets host-consistent buttons,
+ * inputs, cards and text roles, and the bundle gate stays happy. Inline the pieces you need
+ * instead of shipping a framework.
+ */
+
+.aio-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.aio-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aio-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.aio-subtitle {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.aio-muted {
+  font-size: 11px;
+  color: rgba(var(--aio-text-rgb), 0.55);
+}
+
+.aio-card {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--aio-border-dim);
+  background: rgba(var(--aio-text-rgb), 0.03);
+}
+
+.aio-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.aio-input,
+.aio-textarea {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--aio-border-dim);
+  background: rgba(var(--aio-text-rgb), 0.04);
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.aio-input:focus,
+.aio-textarea:focus {
+  border-color: rgba(var(--aio-primary-rgb), 0.55);
+}
+
+.aio-textarea {
+  resize: vertical;
+}
+
+.aio-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  color: rgb(var(--aio-primary-rgb));
+  background: rgba(var(--aio-text-rgb), 0.04);
+  border: 1px solid rgba(var(--aio-primary-rgb), 0.45);
+  transition:
+    background 120ms ease,
+    opacity 120ms ease;
+}
+
+.aio-btn:hover:not(:disabled) {
+  background: rgba(var(--aio-primary-rgb), 0.12);
+}
+
+.aio-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.aio-btn-ghost {
+  color: rgba(var(--aio-text-rgb), 0.8);
+  border-color: var(--aio-border-dim);
+}
+
+.aio-btn-danger {
+  color: var(--aio-danger);
+  border-color: var(--aio-danger);
+}
+
+.aio-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  background: rgba(var(--aio-text-rgb), 0.06);
+  color: rgba(var(--aio-text-rgb), 0.62);
+}
+
+.aio-error {
+  color: var(--aio-danger);
+  font-size: 12px;
+}
+
+.aio-spacer {
+  flex: 1;
+}
+
+.aio-scroll {
+  overflow: auto;
+  min-height: 0;
+}

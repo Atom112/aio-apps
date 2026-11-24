@@ -1,0 +1,28 @@
+{
+  "id": "io.aio.hello-inline",
+  "name": {
+    "zh-CN": "内嵌卡片",
+    "en-US": "Inline Card"
+  },
+  "description": {
+    "zh-CN": "inline 模式示例：不占满工作区，而是以消息尺度的浮动卡片呈现，外壳与主题仍由 AIO 提供。",
+    "en-US": "Inline-mode example: instead of taking the workspace it renders as a message-scale floating card, with the host keeping the frame and theme."
+  },
+  "author": "AIO Examples",
+  "homepage": "https://github.com/Atom112/AIO",
+  "license": "Apache-2.0",
+  "tags": ["example", "inline"],
+  "version": "0.1.0",
+  "entry": "index.html",
+  "icon": "icon.svg",
+  "ui": {
+    "mode": "inline"
+  },
+  "capabilities": ["storage.kv", "ui.notify", "ui.theme"],
+  "network": {
+    "allow": []
+  },
+  "engines": {
+    "aio": "^1.0.0"
+  }
+}

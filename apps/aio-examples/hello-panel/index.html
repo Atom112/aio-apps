@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Scratchpad</title>
+    <link rel="stylesheet" href="aio-app-ui.css" />
+    <style>
+      /*
+   * Panel-mode example. There is deliberately no colour literal and no custom font here:
+   * everything comes from the `--aio-*` tokens in `theme.css`, which the host injects on
+   * initialize. `scripts/check-app-bundle.mjs` rejects bundles that hardcode colours.
+   */
+      body {
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        height: 100vh;
+        box-sizing: border-box;
+      }
+      .head {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .title {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .meta {
+        font-size: 11px;
+        opacity: 0.55;
+      }
+      textarea {
+        flex: 1;
+        min-height: 120px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--aio-border-dim);
+        background: rgba(var(--aio-text-rgb), 0.04);
+        resize: none;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      button {
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        background: rgba(var(--aio-text-rgb), 0.04);
+        border: 1px solid rgba(var(--aio-primary-rgb), 0.45);
+        color: rgb(var(--aio-primary-rgb));
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .status {
+        font-size: 11px;
+        opacity: 0.55;
+        margin-left: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="head">
+      <span class="title">便签</span>
+      <span class="meta" id="meta">握手中…</span>
+    </div>
+    <textarea id="note" placeholder="写下点什么，保存到微应用自己的数据库。"></textarea>
+    <div class="row">
+      <button id="save">保存</button>
+      <button id="clear">清空</button>
+      <span class="status" id="status"></span>
+    </div>
+    <div class="row">
+      <button id="import" class="aio-btn-ghost">导入文件</button>
+      <button id="export" class="aio-btn-ghost">导出便签</button>
+      <button id="refresh" class="aio-btn-ghost">刷新列表</button>
+      <button id="illustrate" class="aio-btn-ghost">生成配图</button>
+    </div>
+    <div class="aio-muted" id="files">无文件</div>
+    <div class="row">
+      <button id="index" class="aio-btn-ghost">索引便签</button>
+      <button id="search" class="aio-btn-ghost">检索</button>
+      <span class="aio-muted" id="hits"></span>
+    </div>
+    <script src="aio-app-sdk.js"></script>
+    <script>
+      (async function () {
+        'use strict';
+        var note = document.getElementById('note');
+        var status = document.getElementById('status');
+        var meta = document.getElementById('meta');
+
+        var app;
+        try {
+          app = await AIO.connect();
+        } catch (error) {
+          meta.textContent = '连接宿主失败: ' + (error && error.code ? error.code : error);
+          return;
+        }
+
+        function renderMeta(theme) {
+          meta.textContent = app.appId + ' · ' + app.uiMode + ' · ' + (theme && theme.mode);
+        }
+        renderMeta(app.theme);
+        app.onTheme(renderMeta);
+
+        // Restore the note from the app's own namespace (first run: nothing stored yet).
+        app.kv
+          .get('note')
+          .then(function (entry) {
+            if (entry) note.value = entry.value;
+          })
+          .catch(function () {
+            /* empty store is normal */
+          });
+
+        document.getElementById('save').addEventListener('click', function () {
+          status.textContent = '保存中…';
+          app.kv
+            .set('note', note.value)
+            .then(function (result) {
+              status.textContent =
+                '已保存 ' + new Date(result.updatedAt * 1000).toLocaleTimeString();
+            })
+            .catch(function (error) {
+              status.textContent = error.code || 'error';
+            });
+        });
+
+        document.getElementById('clear').addEventListener('click', function () {
+          note.value = '';
+          app.kv
+            .del('note')
+            .then(function () {
+              status.textContent = '已清空';
+            })
+            .catch(function (error) {
+              status.textContent = error.code || 'error';
+            });
+        });
+
+        var filesEl = document.getElementById('files');
+
+        function renderFiles(items) {
+          filesEl.textContent = items.length
+            ? items
+                .map(function (item) {
+                  return item.name + ' (' + item.size + ' B)';
+                })
+                .join(' · ')
+            : '无文件';
+        }
+
+        function refreshFiles() {
+          app.files
+            .list()
+            .then(renderFiles)
+            .catch(function (error) {
+              filesEl.textContent = error.code || 'error';
+            });
+        }
+
+        // `import.file`: the host shows the picker and copies the file into app storage; the
+        // app only ever receives the entry (never a path).
+        document.getElementById('import').addEventListener('click', function () {
+          status.textContent = '等待选择文件…';
+          app
+            .importFile()
+            .then(function (entry) {
+              status.textContent = '已导入 ' + entry.name;
+              refreshFiles();
+              app.notify('已导入 ' + entry.name);
+            })
+            .catch(function (error) {
+              status.textContent = error.code === 'cancelled' ? '已取消' : error.code || 'error';
+            });
+        });
+
+        // Export the note as a stored text file, then hand it to the system save dialog.
+        document.getElementById('export').addEventListener('click', function () {
+          status.textContent = '导出中…';
+          app.files
+            .write('note.txt', note.value)
+            .then(function () {
+              return app.exportFile('note.txt', 'note.txt');
+            })
+            .then(function (result) {
+              status.textContent = '已导出 ' + result.bytes + ' B';
+              refreshFiles();
+            })
+            .catch(function (error) {
+              status.textContent = error.code === 'cancelled' ? '已取消' : error.code || 'error';
+            });
+        });
+
+        document.getElementById('refresh').addEventListener('click', refreshFiles);
+
+        // `ai.image`: the host generates a PNG with the selected model and stores it as an
+        // app file, so the app can list/preview/export it like any other file.
+        document.getElementById('illustrate').addEventListener('click', function () {
+          var prompt = note.value.trim() || 'a small abstract illustration';
+          status.textContent = '生成中…';
+          app
+            .image('配图：' + prompt)
+            .then(function (file) {
+              status.textContent = '已生成 ' + file.name;
+              refreshFiles();
+              app.notify('已生成配图');
+            })
+            .catch(function (error) {
+              status.textContent = error.code || 'error';
+            });
+        });
+
+        refreshFiles();
+
+        var hitsEl = document.getElementById('hits');
+
+        function embedOrExplain(texts) {
+          return app.embed(texts).catch(function (error) {
+            hitsEl.textContent =
+              error.code === 'embedding_unavailable'
+                ? '未配置嵌入模型，无法索引/检索'
+                : error.code || 'error';
+            return null;
+          });
+        }
+
+        // Index the current note: host embeddings (`ai.embed`) + the app's own vector index.
+        document.getElementById('index').addEventListener('click', function () {
+          var text = note.value.trim();
+          if (!text) {
+            hitsEl.textContent = '便签为空';
+            return;
+          }
+          hitsEl.textContent = '索引中…';
+          embedOrExplain([text]).then(function (result) {
+            if (!result) return;
+            app.vectors
+              .upsert('note', text, result.vectors[0])
+              .then(function () {
+                hitsEl.textContent = '已索引，维度 ' + result.dim;
+              })
+              .catch(function (error) {
+                hitsEl.textContent = error.code || 'error';
+              });
+          });
+        });
+
+        // Retrieve with the same model; results stay inside this app's namespace.
+        document.getElementById('search').addEventListener('click', function () {
+          var text = note.value.trim();
+          if (!text) {
+            hitsEl.textContent = '便签为空';
+            return;
+          }
+          hitsEl.textContent = '检索中…';
+          embedOrExplain([text]).then(function (result) {
+            if (!result) return;
+            app.vectors
+              .query(result.vectors[0], 3)
+              .then(function (items) {
+                hitsEl.textContent = items.length
+                  ? items
+                      .map(function (item) {
+                        return item.id + ' ' + item.score.toFixed(2);
+                      })
+                      .join(' · ')
+                  : '无命中';
+              })
+              .catch(function (error) {
+                hitsEl.textContent = error.code || 'error';
+              });
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

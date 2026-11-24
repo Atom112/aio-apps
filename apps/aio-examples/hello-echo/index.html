@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hello Echo</title>
+    <link rel="stylesheet" href="aio-app-ui.css" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 16px;
+        height: 100vh;
+        color: rgba(var(--aio-text-rgb), 0.85);
+        background: transparent;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      h1 {
+        font-size: 15px;
+        margin: 0;
+        font-weight: 600;
+      }
+      .meta {
+        font-size: 11px;
+        opacity: 0.55;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      textarea,
+      input {
+        flex: 1;
+        min-width: 0;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--aio-border-dim);
+        background: rgba(var(--aio-text-rgb), 0.04);
+        color: inherit;
+        font: inherit;
+        resize: vertical;
+      }
+      button {
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font: inherit;
+        color: rgb(var(--primary-rgb, 120, 140, 255));
+        background: rgba(var(--aio-text-rgb), 0.04);
+        border: 1px solid rgba(var(--aio-primary-rgb), 0.45);
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .panel {
+        border: 1px solid var(--aio-border-dim);
+        border-radius: 10px;
+        padding: 10px;
+      }
+      .label {
+        font-size: 11px;
+        opacity: 0.6;
+        margin-bottom: 4px;
+      }
+      .log {
+        flex: 1;
+        min-height: 80px;
+        overflow: auto;
+        white-space: pre-wrap;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+      .err {
+        color: var(--aio-danger);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Hello Echo</h1>
+    <div class="meta" id="status">握手中…</div>
+
+    <div class="panel">
+      <div class="label">storage.kv — 写入并读回一条记录</div>
+      <div class="row">
+        <input id="kvValue" value="hello from the sandbox" />
+        <button id="kvWrite">写入</button>
+        <button id="kvRead">读取</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="label">ai.chat — 使用 AIO 当前选中的模型（密钥不出宿主）</div>
+      <textarea id="prompt" rows="3">
+用一句话解释这个微应用的边界：它能做什么、不能做什么。</textarea>
+      <div class="row" style="margin-top: 8px">
+        <button id="ask">提问</button>
+        <span class="meta" id="askState"></span>
+      </div>
+    </div>
+
+    <div class="panel" style="display: flex; flex-direction: column; min-height: 0">
+      <div class="label">输出</div>
+      <div class="log" id="out"></div>
+    </div>
+
+    <script src="aio-app-sdk.js"></script>
+    <script>
+      (async function () {
+        'use strict';
+        var statusEl = document.getElementById('status');
+        var outEl = document.getElementById('out');
+
+        function log(text, isError) {
+          var line = document.createElement('div');
+          if (isError) line.classList.add('aio-error');
+          line.textContent = text;
+          outEl.appendChild(line);
+          outEl.scrollTop = outEl.scrollHeight;
+        }
+
+        var app;
+        try {
+          // Handshake + theme application in one call; the SDK also forwards live theme updates.
+          app = await AIO.connect();
+        } catch (error) {
+          statusEl.textContent = '连接宿主失败: ' + (error && error.code ? error.code : error);
+          return;
+        }
+
+        statusEl.textContent =
+          '已连接 · ' +
+          app.appId +
+          ' · 主题: ' +
+          (app.theme && app.theme.mode) +
+          ' · 能力: ' +
+          app.capabilities.join(', ');
+
+        app.onTheme(function (theme) {
+          statusEl.textContent =
+            '已连接 · ' +
+            app.appId +
+            ' · 主题: ' +
+            (theme && theme.mode) +
+            ' · 能力: ' +
+            app.capabilities.join(', ');
+        });
+
+        // Self-test for the smoke harness: prove the granted capabilities reached the app.
+        app.kv
+          .set(
+            'handshake',
+            JSON.stringify({ appId: app.appId, at: Date.now(), caps: app.capabilities }),
+          )
+          .catch(function (error) {
+            log('handshake probe failed: ' + error.message, true);
+          });
+
+        document.getElementById('kvWrite').addEventListener('click', function () {
+          app.kv
+            .set('note', document.getElementById('kvValue').value)
+            .then(function (result) {
+              log('写入成功, updatedAt=' + result.updatedAt);
+            })
+            .catch(function (error) {
+              log('写入失败: ' + error.code + ' ' + error.message, true);
+            });
+        });
+
+        document.getElementById('kvRead').addEventListener('click', function () {
+          app.kv
+            .get('note')
+            .then(function (entry) {
+              log(entry ? '读回: ' + entry.value : '尚无记录');
+            })
+            .catch(function (error) {
+              log('读取失败: ' + error.code + ' ' + error.message, true);
+            });
+        });
+
+        document.getElementById('ask').addEventListener('click', function () {
+          var button = this;
+          var state = document.getElementById('askState');
+          button.disabled = true;
+          state.textContent = '主机执行中…';
+          app
+            .chat([{ role: 'user', content: document.getElementById('prompt').value }], {
+              maxTokens: 512,
+            })
+            .then(function (result) {
+              log('模型回复:\n' + (result && result.text ? result.text : '(空)'));
+              state.textContent = '';
+            })
+            .catch(function (error) {
+              log('模型调用失败: ' + error.code + ' ' + error.message, true);
+              state.textContent = error.code;
+            })
+            .then(function () {
+              button.disabled = false;
+            });
+        });
+      })();
+    </script>
+  </body>
+</html>

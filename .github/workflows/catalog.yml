@@ -1,0 +1,61 @@
+# Submission CI for the aio-apps catalog.
+#
+# The bundle gate and the registry tool are vendored under `.aio-tools/` (copied from the
+# AIO repository) so a catalog change cannot alter the checker that reviews it.
+#
+# On pull requests: validate the bundles and build an unsigned registry (no secrets).
+# On push to main: build a signed registry, verify it, and commit `registry.json` plus
+# `artifacts/*.zip` back to the branch, so clients can fetch them straight from raw URLs.
+name: catalog
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Bundle gate (structure + style)
+        run: node .aio-tools/check-app-bundle.mjs apps
+
+      - name: Build registry
+        env:
+          PUBLISHER_KEY: ${{ secrets.PUBLISHER_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "${PUBLISHER_KEY:-}" ]; then
+            printf '%s' "$PUBLISHER_KEY" > "$RUNNER_TEMP/publisher.key"
+            node .aio-tools/apps-registry-tool.mjs build \
+              --apps apps --artifacts artifacts \
+              --key "$RUNNER_TEMP/publisher.key" --out registry.json
+            rm -f "$RUNNER_TEMP/publisher.key"
+            node .aio-tools/apps-registry-tool.mjs verify --in registry.json --pubkey "$(cat publisher.pub)"
+          else
+            node .aio-tools/apps-registry-tool.mjs build --apps apps --artifacts artifacts --out registry.json
+            node .aio-tools/apps-registry-tool.mjs verify --in registry.json
+            echo "::warning::PUBLISHER_KEY is not set — this build is unsigned and remote AIO clients will refuse it."
+          fi
+
+      - name: Publish registry to main
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          git config user.name 'aio-catalog-bot'
+          git config user.email 'aio-catalog-bot@users.noreply.github.com'
+          git add registry.json artifacts
+          if git diff --cached --quiet; then
+            echo "registry unchanged"
+            exit 0
+          fi
+          git commit -m 'chore(registry): rebuild [skip ci]'
+          git push

@@ -1,0 +1,38 @@
+{
+  "id": "io.aio.hello-panel",
+  "name": {
+    "zh-CN": "便签",
+    "en-US": "Scratchpad"
+  },
+  "description": {
+    "zh-CN": "面板模式示例：导入一个文本文件到微应用自己的存储、列出文件、把便签导出到本地。内容永远不会进入主应用数据库。",
+    "en-US": "Panel-mode example: import a text file into the app's own storage, list files, and export the note locally. Nothing ever enters the host database."
+  },
+  "author": "AIO Examples",
+  "homepage": "https://github.com/Atom112/AIO",
+  "license": "Apache-2.0",
+  "tags": ["example", "panel", "notes"],
+  "screenshots": ["screenshot.svg"],
+  "version": "0.1.0",
+  "entry": "index.html",
+  "icon": "icon.svg",
+  "ui": {
+    "mode": "panel"
+  },
+  "capabilities": [
+    "storage.kv",
+    "storage.file",
+    "import.file",
+    "export.file",
+    "ui.notify",
+    "ai.embed",
+    "vector.self",
+    "ai.image"
+  ],
+  "network": {
+    "allow": []
+  },
+  "engines": {
+    "aio": "^1.0.0"
+  }
+}

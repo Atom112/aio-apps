@@ -1,0 +1,4 @@
+# signing material never belongs in the repository
+*.key
+.keys/
+registry.unsigned.json

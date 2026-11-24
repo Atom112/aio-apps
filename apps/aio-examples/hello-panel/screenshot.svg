@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="960" height="600">
+  <rect width="960" height="600" fill="#1b1f33"/>
+  <rect x="24" y="24" width="912" height="552" rx="18" fill="#ffffff" fill-opacity="0.03" stroke="#ffffff" stroke-opacity="0.12"/>
+  <text x="56" y="76" font-family="ui-sans-serif, system-ui, sans-serif" font-size="24" fill="#e8ebff">便签</text>
+  <text x="112" y="76" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#9aa6ff">io.aio.hello-panel · panel · dark</text>
+  <rect x="56" y="100" width="848" height="360" rx="10" fill="#ffffff" fill-opacity="0.04" stroke="#ffffff" stroke-opacity="0.12"/>
+  <text x="76" y="134" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#e8ebff">面板模式：宿主保留外框，应用只占中间一列。</text>
+  <text x="76" y="162" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#e8ebff">所有颜色与字体来自 --aio-* 设计令牌。</text>
+  <rect x="56" y="480" width="110" height="34" rx="8" fill="#ffffff" fill-opacity="0.05" stroke="#9aa6ff" stroke-opacity="0.6"/>
+  <text x="86" y="502" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#c7cfff">保存</text>
+  <rect x="178" y="480" width="110" height="34" rx="8" fill="#ffffff" fill-opacity="0.05" stroke="#9aa6ff" stroke-opacity="0.6"/>
+  <text x="208" y="502" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#c7cfff">清空</text>
+</svg>

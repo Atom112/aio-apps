@@ -1,0 +1,29 @@
+{
+  "id": "io.aio.hello-echo",
+  "name": {
+    "zh-CN": "回声工作台",
+    "en-US": "Hello Echo"
+  },
+  "description": {
+    "zh-CN": "最小可用的微应用示例：通过宿主桥写入并读回一条键值记录，并用 AIO 当前选中的模型做一次问答。",
+    "en-US": "A minimal micro-app: write and read a key through the host bridge, and ask the model currently selected in AIO one question."
+  },
+  "author": "AIO Examples",
+  "homepage": "https://github.com/Atom112/AIO",
+  "license": "Apache-2.0",
+  "tags": ["example", "sandbox", "ai"],
+  "screenshots": ["screenshot.svg"],
+  "version": "0.1.0",
+  "entry": "index.html",
+  "icon": "icon.svg",
+  "ui": {
+    "mode": "canvas"
+  },
+  "capabilities": ["ai.chat", "storage.kv"],
+  "network": {
+    "allow": []
+  },
+  "engines": {
+    "aio": "^1.0.0"
+  }
+}
