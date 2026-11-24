@@ -1,11 +1,13 @@
 # Submission CI for the aio-apps catalog.
 #
-# The bundle gate and the registry tool are vendored under `.aio-tools/` (copied from the
-# AIO repository) so a catalog change cannot alter the checker that reviews it.
+# Two jobs, because signing and reviewing are different gates:
+#   verify  — runs on every PR and push: bundle gate + unsigned build (no secrets).
+#   publish — runs only on main, inside the `production` environment (manual approval), and
+#             is the only place the signing key is exposed. It re-builds, signs, verifies and
+#             commits `registry.json` + `artifacts/` back to the branch.
 #
-# On pull requests: validate the bundles and build an unsigned registry (no secrets).
-# On push to main: build a signed registry, verify it, and commit `registry.json` plus
-# `artifacts/*.zip` back to the branch, so clients can fetch them straight from raw URLs.
+# The gate and the registry tool are vendored under `.aio-tools/` (copied from the AIO
+# repository) so a catalog change cannot alter the checker that reviews it.
 name: catalog
 
 on:
@@ -14,7 +16,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -28,26 +30,43 @@ jobs:
       - name: Bundle gate (structure + style)
         run: node .aio-tools/check-app-bundle.mjs apps
 
-      - name: Build registry
+      - name: Build (unsigned) and verify the payload shape
+        run: |
+          node .aio-tools/apps-registry-tool.mjs build --apps apps --artifacts artifacts --out registry.unsigned.json
+          node .aio-tools/apps-registry-tool.mjs verify --in registry.unsigned.json
+
+  publish:
+    if: github.event_name == 'push'
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build, sign and verify the registry
         env:
           PUBLISHER_KEY: ${{ secrets.PUBLISHER_KEY }}
         run: |
           set -euo pipefail
-          if [ -n "${PUBLISHER_KEY:-}" ]; then
-            printf '%s' "$PUBLISHER_KEY" > "$RUNNER_TEMP/publisher.key"
-            node .aio-tools/apps-registry-tool.mjs build \
-              --apps apps --artifacts artifacts \
-              --key "$RUNNER_TEMP/publisher.key" --out registry.json
-            rm -f "$RUNNER_TEMP/publisher.key"
-            node .aio-tools/apps-registry-tool.mjs verify --in registry.json --pubkey "$(cat publisher.pub)"
-          else
-            node .aio-tools/apps-registry-tool.mjs build --apps apps --artifacts artifacts --out registry.json
-            node .aio-tools/apps-registry-tool.mjs verify --in registry.json
-            echo "::warning::PUBLISHER_KEY is not set — this build is unsigned and remote AIO clients will refuse it."
+          if [ -z "${PUBLISHER_KEY:-}" ]; then
+            echo "::error::PUBLISHER_KEY is not available in this environment; refusing to publish an unsigned registry."
+            exit 1
           fi
+          printf '%s' "$PUBLISHER_KEY" > "$RUNNER_TEMP/publisher.key"
+          node .aio-tools/apps-registry-tool.mjs build \
+            --apps apps --artifacts artifacts \
+            --key "$RUNNER_TEMP/publisher.key" --out registry.json
+          rm -f "$RUNNER_TEMP/publisher.key"
+          node .aio-tools/apps-registry-tool.mjs verify --in registry.json --pubkey "$(cat publisher.pub)"
 
       - name: Publish registry to main
-        if: github.event_name == 'push'
         run: |
           set -euo pipefail
           git config user.name 'aio-catalog-bot'

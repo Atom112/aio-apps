@@ -68,6 +68,19 @@ node .aio-tools/apps-registry-tool.mjs revoke --in registry.json --id io.example
 Installed clients disable the matching version on the next refresh (by digest or id+version)
 and show the reason; uninstall stays available.
 
+## Governance
+
+- `main` is protected: no direct pushes, one approving review, and the `verify` check must pass
+  (the CI bot may push its own `[skip ci]` registry commit).
+- Signing runs only in the `production` environment, which requires manual approval. The
+  `PUBLISHER_KEY` secret exists **only** there; a normal PR run never sees it.
+- Reviews follow `REVIEW.md`; `CODEOWNERS` requests the owner on every submission.
+- Releases are tagged (`vX.Y.Z`). Point clients at a tag for an immutable snapshot:
+  `https://cdn.jsdelivr.net/gh/Atom112/aio-apps@vX.Y.Z/registry.json`; `@main` tracks the latest
+  signed index.
+- Incidents: see [SECURITY.md](SECURITY.md) — revocation is an index change, never a silent
+  deletion.
+
 ## Policy
 
 - A PR may add new versions; the previous version stays indexed for rollback.

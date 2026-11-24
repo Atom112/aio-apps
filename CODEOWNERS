@@ -1,0 +1,3 @@
+# The catalog owner reviews every submission; apps/* changes therefore always request a review.
+*        @Atom112
+/CODEOWNERS @Atom112
