@@ -10,11 +10,12 @@
 // Commands:
 //   keygen  --out-dir DIR                        generate publisher.key + publisher.pub
 //   pack    --app DIR --out FILE                  zip one bundle (store/deflate)
-//   build   --apps DIR [--artifacts DIR] [--key FILE] [--out FILE]
+//   build   --apps DIR [--artifacts DIR] [--key FILE] [--out FILE] [--revocations FILE]
 //                                                 validate, pack and index every bundle
 //   sign    --in FILE --key FILE [--out FILE]     sign an unsigned registry
 //   verify  --in FILE --pubkey B64               verify signature + payload shape
-//   revoke  --in FILE --id ID (--version V | --digest D) [--reason TEXT] [--out FILE]
+//   revoke  --revocations FILE --id ID (--version V | --digest D) [--reason TEXT]
+//           (no FILE: append to ./revocations.json; legacy --in patches an envelope in place)
 //
 // `--apps DIR` expects `<DIR>/<publisher>/<app>/aio.app.json`, the catalog layout.
 import {
@@ -219,8 +220,20 @@ function commandBuild(args) {
   const gateRun = spawnSync(process.execPath, [gate, ...bundles], { stdio: 'inherit' });
   if (gateRun.status !== 0) die('bundle gate failed; nothing was built');
 
+  // Revocations must survive rebuilds, so they live in a reviewed list file instead of
+  // being regenerated from nothing. `--revocations` wins; otherwise `revocations.json` next
+  // to the apps root is used when present.
+  const revocationsFile = args.revocations
+    ? resolve(String(args.revocations))
+    : join(dirname(appsRoot), 'revocations.json');
+  let revoked = [];
+  if (existsSync(revocationsFile)) {
+    const parsed = JSON.parse(readFileSync(revocationsFile, 'utf8'));
+    if (!Array.isArray(parsed)) die(`${revocationsFile} must contain a JSON array`);
+    revoked = parsed;
+  }
+
   const apps = [];
-  const revoked = [];
   for (const bundle of bundles) {
     const manifest = JSON.parse(readFileSync(join(bundle, 'aio.app.json'), 'utf8'));
     const zipName = `${manifest.id}-${manifest.version}.zip`;
@@ -289,15 +302,35 @@ function commandVerify(args) {
 }
 
 function commandRevoke(args) {
-  const input = resolve(args.in ?? die('--in is required'));
-  const envelope = JSON.parse(readFileSync(input, 'utf8'));
-  const { payload } = decodeEnvelope(envelope);
-  const parsed = JSON.parse(payload.toString('utf8'));
   const entry = { id: String(args.id ?? die('--id is required')) };
   if (args.version) entry.version = String(args.version);
   if (args.digest) entry.digest = String(args.digest);
   if (!entry.version && !entry.digest) die('revocation needs --version or --digest');
   if (args.reason) entry.reason = String(args.reason);
+
+  // Preferred form: append to the reviewed list file that `build` seeds from.
+  const listFile = args.revocations
+    ? resolve(String(args.revocations))
+    : args.in
+      ? null
+      : resolve('revocations.json');
+  if (listFile) {
+    const list = existsSync(listFile) ? JSON.parse(readFileSync(listFile, 'utf8')) : [];
+    if (!Array.isArray(list)) die(`${listFile} must contain a JSON array`);
+    list.push(entry);
+    writeFileSync(listFile, `${JSON.stringify(list, null, 2)}\n`);
+    process.stdout.write(
+      `${listFile} (revoked ${entry.id}${entry.version ? `@${entry.version}` : ''}; ` +
+        'commit it and CI re-signs the registry)\n',
+    );
+    return;
+  }
+
+  // Legacy form: patch an existing registry envelope in place (ad-hoc/local testing).
+  const input = resolve(args.in);
+  const envelope = JSON.parse(readFileSync(input, 'utf8'));
+  const { payload } = decodeEnvelope(envelope);
+  const parsed = JSON.parse(payload.toString('utf8'));
   parsed.revoked.push(entry);
   const bytes = payloadBytes(parsed);
   const out = resolve(args.out ?? input);

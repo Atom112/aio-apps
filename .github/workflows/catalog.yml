@@ -32,7 +32,8 @@ jobs:
 
       - name: Build (unsigned) and verify the payload shape
         run: |
-          node .aio-tools/apps-registry-tool.mjs build --apps apps --artifacts artifacts --out registry.unsigned.json
+          node .aio-tools/apps-registry-tool.mjs build --apps apps --artifacts artifacts \
+            --revocations revocations.json --out registry.unsigned.json
           node .aio-tools/apps-registry-tool.mjs verify --in registry.unsigned.json
 
   publish:
@@ -61,7 +62,7 @@ jobs:
           fi
           printf '%s' "$PUBLISHER_KEY" > "$RUNNER_TEMP/publisher.key"
           node .aio-tools/apps-registry-tool.mjs build \
-            --apps apps --artifacts artifacts \
+            --apps apps --artifacts artifacts --revocations revocations.json \
             --key "$RUNNER_TEMP/publisher.key" --out registry.json
           rm -f "$RUNNER_TEMP/publisher.key"
           node .aio-tools/apps-registry-tool.mjs verify --in registry.json --pubkey "$(cat publisher.pub)"

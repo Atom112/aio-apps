@@ -30,6 +30,7 @@ aio-apps/
 ├── publisher.pub             # public half of the signing key (private half lives in CI)
 ├── REVIEW.md                 # what a reviewer checks, in order
 ├── pull_request_template.md  # submission checklist
+├── revocations.json          # reviewed list of revoked versions (seeded into every build)
 ├── registry.json             # generated + signed by CI; do not edit
 └── artifacts/                # generated zips referenced by registry.json
 ```
@@ -60,11 +61,14 @@ secret. Rotating it means publishing a new `publisher.pub` in the same PR that u
 clients (public keys are pasted by users, so rotation is a release note).
 
 ```bash
-# revoke a version without deleting history
-node .aio-tools/apps-registry-tool.mjs revoke --in registry.json --id io.example.app \
+# revoke a version without deleting history: append to the reviewed list, then PR it
+node .aio-tools/apps-registry-tool.mjs revoke --id io.example.app \
   --digest <artifact sha256> --reason "credential exfiltration"
-# then commit the change; CI re-signs
+git add revocations.json && git commit -m "revoke io.example.app 1.2.3" && git push
 ```
+
+`revocations.json` is the durable source of `revoked[]`: every build seeds the index from it,
+so a rebuild never resurrects a revoked version. CI re-signs after the PR merges.
 
 Installed clients disable the matching version on the next refresh (by digest or id+version)
 and show the reason; uninstall stays available.
